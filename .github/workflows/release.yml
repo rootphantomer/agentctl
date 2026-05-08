@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Prepare archive
+        shell: bash
+        run: |
+          BIN_NAME="agentctl"
+          ARCHIVE_DIR="${{ github.workspace }}/agentctl-${{ matrix.target }}"
+          mkdir -p "$ARCHIVE_DIR"
+          cp "target/${{ matrix.target }}/release/${BIN_NAME}" "$ARCHIVE_DIR/"
+          cp README.md README.zh.md LICENSE "$ARCHIVE_DIR/"
+          cd "${{ github.workspace }}"
+          tar czf "agentctl-${{ matrix.target }}.tar.gz" -C "$(dirname "$ARCHIVE_DIR")" "$(basename "$ARCHIVE_DIR")"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentctl-${{ matrix.target }}
+          path: agentctl-${{ matrix.target }}.tar.gz
+          if-no-files-found: error
+
+  create-release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes
+        run: |
+          PREV_TAG=$(git tag --sort=-version:refname | head -n 2 | tail -n 1 || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            echo "## What's Changed" > /tmp/release-notes.md
+            git log "$PREV_TAG"..HEAD --oneline --no-decorate | \
+              sed 's/^[[:space:]]*\([a-f0-9]\{7\}\)[[:space:]]/\* /' >> /tmp/release-notes.md
+          else
+            echo "## Initial release" > /tmp/release-notes.md
+          fi
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/artifacts
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: /tmp/release-notes.md
+          files: /tmp/artifacts/**/*.tar.gz
+          draft: false
+          prerelease: false
+          generate_release_notes: false

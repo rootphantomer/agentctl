@@ -4,6 +4,8 @@
 
 `agentctl` is a cross-platform CLI tool that scans running processes to identify popular Agent Gateway frameworks — MCP, A2A, Dify, n8n, LangGraph, Ollama, and more — then lets you list, inspect, or terminate them.
 
+[🇨🇳 中文文档](./README.zh.md)
+
 ---
 
 ## Features
