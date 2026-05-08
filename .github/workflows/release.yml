@@ -1,87 +1,72 @@
-name: Release
+name: Build & Release
 
 on:
   push:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
           - target: x86_64-apple-darwin
-            os: macos-latest
+            os: macos-13
+            artifact_suffix: x86_64-apple-darwin
+
           - target: aarch64-apple-darwin
-            os: macos-latest
+            os: macos-15
+            artifact_suffix: aarch64-apple-darwin
+
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+            artifact_suffix: x86_64-unknown-linux-gnu
+
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04
+            artifact_suffix: aarch64-unknown-linux-gnu
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
-      - name: Build release binary
+      - name: Install cross-compilation tools (Linux ARM64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          echo "CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++" >> $GITHUB_ENV
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+
+      - name: Build release
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Prepare archive
+      - name: Package binary
         shell: bash
         run: |
-          BIN_NAME="agentctl"
-          ARCHIVE_DIR="${{ github.workspace }}/agentctl-${{ matrix.target }}"
-          mkdir -p "$ARCHIVE_DIR"
-          cp "target/${{ matrix.target }}/release/${BIN_NAME}" "$ARCHIVE_DIR/"
-          cp README.md README.zh.md LICENSE "$ARCHIVE_DIR/"
-          cd "${{ github.workspace }}"
-          tar czf "agentctl-${{ matrix.target }}.tar.gz" -C "$(dirname "$ARCHIVE_DIR")" "$(basename "$ARCHIVE_DIR")"
+          cd target/${{ matrix.target }}/release
+          tar czf agentctl-${{ matrix.artifact_suffix }}.tar.gz agentctl
+          echo "PACKAGE=agentctl-${{ matrix.artifact_suffix }}.tar.gz" >> $GITHUB_ENV
 
-      - name: Upload artifact
+      - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: agentctl-${{ matrix.target }}
-          path: agentctl-${{ matrix.target }}.tar.gz
-          if-no-files-found: error
+          name: agentctl-${{ matrix.artifact_suffix }}
+          path: target/${{ matrix.target }}/release/agentctl-${{ matrix.artifact_suffix }}.tar.gz
 
-  create-release:
-    name: Create Release
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Generate release notes
-        run: |
-          PREV_TAG=$(git tag --sort=-version:refname | head -n 2 | tail -n 1 || echo "")
-          if [ -n "$PREV_TAG" ]; then
-            echo "## What's Changed" > /tmp/release-notes.md
-            git log "$PREV_TAG"..HEAD --oneline --no-decorate | \
-              sed 's/^[[:space:]]*\([a-f0-9]\{7\}\)[[:space:]]/\* /' >> /tmp/release-notes.md
-          else
-            echo "## Initial release" > /tmp/release-notes.md
-          fi
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: /tmp/artifacts
-
-      - name: Create release
+      - name: Upload to release
         uses: softprops/action-gh-release@v2
         with:
-          body_path: /tmp/release-notes.md
-          files: /tmp/artifacts/**/*.tar.gz
-          draft: false
-          prerelease: false
-          generate_release_notes: false
+          files: target/${{ matrix.target }}/release/agentctl-${{ matrix.artifact_suffix }}.tar.gz
+          generate_release_notes: true

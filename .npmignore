@@ -1,0 +1,18 @@
+# 默认排除所有文件
+*
+# 只包含需要的文件
+!bin/**
+!scripts/**
+!src/**
+!Cargo.toml
+!Cargo.lock
+!package.json
+!README.md
+!README.zh.md
+!LICENSE
+
+# 排掉安装时产生的二进制
+bin/agentctl
+
+# Rust 构建产物
+target/

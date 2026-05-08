@@ -16,13 +16,22 @@
 - **Check** if any gateway is running (exit-code based, ideal for scripts)
 - **Multiple output formats** — table (default), JSON, compact
 - **Verbose mode** for extra details (process name, default port, web URL)
-- **Cross-platform** — macOS, Linux, Windows
+- **Cross-platform** — macOS, Linux
 
 ---
 
 ## Installation
 
-### From source
+### npm（recommended）
+
+```bash
+npm install -g agentctl
+```
+
+> Compiles from source automatically via `cargo build --release` on install.
+> Requires [Rust](https://rustup.rs/) toolchain and Node.js 14+. First install takes ~1-3 min (crate download + compile).
+
+### Build from source
 
 ```bash
 git clone https://github.com/agentctl/agentctl.git
@@ -30,12 +39,6 @@ cd agentctl
 cargo build --release
 cp target/release/agentctl ~/.local/bin/
 ```
-
-> Requires [Rust](https://rustup.rs/) 1.75+.
-
-### Pre-built binaries
-
-*(Coming soon)*
 
 ---
 

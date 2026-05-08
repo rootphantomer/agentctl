@@ -14,13 +14,22 @@
 - **检查** 是否有网关在运行（基于退出码，适合脚本）
 - **多种输出格式** — 表格（默认）、JSON、紧凑模式
 - **Verbose 模式** 展示更多详情（进程名、默认端口、Web URL）
-- **跨平台** — macOS、Linux、Windows
+- **跨平台** — macOS、Linux
 
 ---
 
 ## 安装
 
-### 从源码编译
+### npm（推荐）
+
+```bash
+npm install -g agentctl
+```
+
+> 安装时自动用 `cargo build --release` 从源码编译。
+> 需要 [Rust](https://rustup.rs/) 工具链和 Node.js 14+。首次安装约 1-3 分钟（下载依赖 + 编译）。
+
+### 手动编译
 
 ```bash
 git clone https://github.com/agentctl/agentctl.git
@@ -28,12 +37,6 @@ cd agentctl
 cargo build --release
 cp target/release/agentctl ~/.local/bin/
 ```
-
-> 需要 [Rust](https://rustup.rs/) 1.75+ 及以上版本。
-
-### 预编译二进制
-
-*(即将推出)*
 
 ---
 

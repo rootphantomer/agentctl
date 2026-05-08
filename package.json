@@ -1,0 +1,36 @@
+{
+  "name": "agentctl",
+  "version": "0.2.0",
+  "description": "CLI tool to detect and manage running Agent Gateway processes (MCP, A2A, Dify, n8n, Ollama, etc.)",
+  "bin": {
+    "agentctl": "bin/agentctl.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/install.js",
+    "prepublishOnly": "node scripts/sync-version.js",
+    "version": "node scripts/sync-version.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rootphantomer/agentctl.git"
+  },
+  "keywords": [
+    "cli",
+    "agent",
+    "gateway",
+    "mcp",
+    "a2a",
+    "process-manager",
+    "sysadmin",
+    "devtools"
+  ],
+  "author": "Agentctl Team",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/rootphantomer/agentctl/issues"
+  },
+  "homepage": "https://github.com/rootphantomer/agentctl",
+  "engines": {
+    "node": ">=14"
+  }
+}
