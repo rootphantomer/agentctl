@@ -1,6 +1,6 @@
 [package]
 name = "agentctl"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Agentctl Team"]
 description = "CLI tool to detect and manage running Agent Gateway processes"
