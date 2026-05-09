@@ -29,12 +29,12 @@ release:
 	@echo ""
 
 # ── 推送发布 commit + tag 到 GitHub ──────────────────────────────
-# GitHub Actions 检测到 tag 后自动执行 npm publish
+# GitHub Actions 检测到 tag 后自动发布到 GitHub Packages
 release-push:
 	git push origin --follow-tags
-	@echo "  ✅ 已推送。GitHub Actions 会自动发布到 npm。"
+	@echo "  ✅ 已推送。GitHub Actions 会自动发布到 GitHub Packages。"
 
-# ── 从本地直接发布到 npm（不经过 CI） ─────────────────────────────
+# ── 从本地直接发布到 GitHub Packages（不经过 CI） ────────────────
 # 用法: make npm-publish
 npm-publish: node_modules
 	# 确保版本与 Cargo.toml 一致
@@ -42,8 +42,8 @@ npm-publish: node_modules
 	# 打包确认
 	npm pack --dry-run
 	@echo ""
-	@read -p "  ⚠️  确认发布? 按 Enter 继续, Ctrl+C 取消" _
-	# 发布
+	@read -p "  ⚠️  确认发布到 GitHub Packages? 按 Enter 继续, Ctrl+C 取消" _
+	# 发布到 GitHub Packages
 	npm publish
 
 node_modules:
