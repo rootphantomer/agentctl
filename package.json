@@ -1,6 +1,6 @@
 {
   "name": "@rootphantomer/agentctl",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "CLI tool to detect and manage running Agent Gateway processes (MCP, A2A, Dify, n8n, Ollama, etc.)",
   "bin": {
     "agentctl": "bin/agentctl.js"
