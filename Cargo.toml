@@ -1,8 +1,8 @@
 [package]
 name = "agentctl"
 version = "0.2.0"
-edition = "2021"
-authors = ["Agentctl Team"]
+edition = "2026"
+authors = ["rootphantomer"]
 description = "CLI tool to detect and manage running Agent Gateway processes"
 license = "MIT"
 repository = "https://github.com/rootphantomer/agentctl"
