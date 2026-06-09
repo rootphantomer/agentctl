@@ -28,7 +28,18 @@ jobs:
       - name: Sync version to package.json
         run: node scripts/sync-version.js
 
+      - name: Check if version already published
+        id: check_version
+        run: |
+          if npm view @rootphantomer/agentctl@${{ steps.version.outputs.VERSION }} --registry=https://npm.pkg.github.com > /dev/null 2>&1; then
+            echo "already_published=true" >> $GITHUB_OUTPUT
+            echo "⚠️ Version ${{ steps.version.outputs.VERSION }} already published, skipping"
+          else
+            echo "already_published=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Publish to GitHub Packages
+        if: steps.check_version.outputs.already_published != 'true'
         run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
