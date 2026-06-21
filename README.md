@@ -110,7 +110,7 @@ agentctl types
 
 ---
 
-## Supported Gateways (20)
+## Supported Gateways (23)
 
 | ID | Name | Default Port |
 |----|------|-------------|
@@ -134,6 +134,9 @@ agentctl types
 | `deepseek-tui` | DeepSeek TUI | — |
 | `hermes` | Hermes | — |
 | `qclaw` | QClaw | — |
+| `cloudflare-workers` | Cloudflare Workers AI | — |
+| `langchain` | LangChain | — |
+| `llamaindex` | LlamaIndex | 8080 |
 
 Detection uses case-insensitive keyword matching against process names and command-line arguments. Add more by editing `src/gateway.rs`.
 

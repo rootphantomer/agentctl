@@ -233,8 +233,5 @@ fn show_types() {
 
     table.print();
     println!();
-    println!(
-        "  {} supported gateway types",
-        gateways.len().to_string().green()
-    );
+    println!("  {} supported gateway types", gateways.len().to_string().green());
 }

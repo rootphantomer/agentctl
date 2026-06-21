@@ -13,19 +13,11 @@ pub fn kill_all_command(force: bool, yes: bool) -> i32 {
     }
 
     // Show what we're about to kill
-    print_info(&format!(
-        "Found {} Agent Gateway(s) to terminate:",
-        gateways.len()
-    ));
+    print_info(&format!("Found {} Agent Gateway(s) to terminate:", gateways.len()));
     println!();
 
     for gw in &gateways {
-        println!(
-            "  - {} (PID: {}, Type: {})",
-            gw.name,
-            gw.pid,
-            gw.gateway.name
-        );
+        println!("  - {} (PID: {}, Type: {})", gw.name, gw.pid, gw.gateway.name);
     }
     println!();
 
@@ -44,24 +36,15 @@ pub fn kill_all_command(force: bool, yes: bool) -> i32 {
             Ok(killed) => {
                 if killed {
                     success_count += 1;
-                    print_success(&format!(
-                        "Terminated {} (PID: {})",
-                        gw.gateway.name, gw.pid
-                    ));
+                    print_success(&format!("Terminated {} (PID: {})", gw.gateway.name, gw.pid));
                 } else {
                     fail_count += 1;
-                    print_warning(&format!(
-                        "Process {} may still be running",
-                        gw.pid
-                    ));
+                    print_warning(&format!("Process {} may still be running", gw.pid));
                 }
             }
             Err(e) => {
                 fail_count += 1;
-                print_error(&format!(
-                    "Failed to terminate PID {}: {}",
-                    gw.pid, e
-                ));
+                print_error(&format!("Failed to terminate PID {}: {}", gw.pid, e));
             }
         }
     }
@@ -69,16 +52,10 @@ pub fn kill_all_command(force: bool, yes: bool) -> i32 {
     // Summary
     println!();
     if fail_count == 0 {
-        print_success(&format!(
-            "Successfully terminated {} gateway(s)",
-            success_count
-        ));
+        print_success(&format!("Successfully terminated {} gateway(s)", success_count));
         0
     } else {
-        print_warning(&format!(
-            "Terminated {} gateway(s), {} failed",
-            success_count, fail_count
-        ));
+        print_warning(&format!("Terminated {} gateway(s), {} failed", success_count, fail_count));
         if !force {
             print_info("Some processes may require --force to terminate");
         }

@@ -108,7 +108,7 @@ agentctl types
 
 ---
 
-## 支持的网关类型（20 种）
+## 支持的网关类型（23 种）
 
 | ID | 名称 | 默认端口 |
 |----|------|---------|
@@ -132,6 +132,9 @@ agentctl types
 | `deepseek-tui` | DeepSeek TUI | — |
 | `hermes` | Hermes | — |
 | `qclaw` | QClaw | — |
+| `cloudflare-workers` | Cloudflare Workers AI | — |
+| `langchain` | LangChain | — |
+| `llamaindex` | LlamaIndex | 8080 |
 
 检测使用不区分大小写的关键词匹配，覆盖进程名和命令行参数。如需新增，编辑 `src/gateway.rs` 即可。
 

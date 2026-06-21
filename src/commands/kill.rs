@@ -11,24 +11,15 @@ pub fn kill_command(pid: u32, force: bool) -> i32 {
 
     match target {
         Some(gw) => {
-            print_info(&format!(
-                "Terminating {} (PID: {})",
-                gw.gateway.name, pid
-            ));
+            print_info(&format!("Terminating {} (PID: {})", gw.gateway.name, pid));
 
             match kill_process(pid, force) {
                 Ok(killed) => {
                     if killed {
-                        print_success(&format!(
-                            "Successfully terminated {} (PID: {})",
-                            gw.gateway.name, pid
-                        ));
+                        print_success(&format!("Successfully terminated {} (PID: {})", gw.gateway.name, pid));
                         0
                     } else {
-                        print_error(&format!(
-                            "Failed to terminate PID {} - process may require force kill",
-                            pid
-                        ));
+                        print_error(&format!("Failed to terminate PID {} - process may require force kill", pid));
                         if !force {
                             print_info("Use --force or -f to send SIGKILL");
                         }
@@ -42,10 +33,7 @@ pub fn kill_command(pid: u32, force: bool) -> i32 {
             }
         }
         None => {
-            print_warning(&format!(
-                "PID {} is not a known Agent Gateway",
-                pid
-            ));
+            print_warning(&format!("PID {} is not a known Agent Gateway", pid));
             print_info("Use `ps` to check if this PID exists");
             1
         }

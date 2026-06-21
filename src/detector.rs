@@ -54,23 +54,10 @@ pub fn detect_gateways() -> Vec<DetectedGateway> {
 
         // Check each gateway type
         for gateway in &gateway_list {
-            // Check process name
-            if matches_keyword(&process_name, &gateway.keywords) {
-                seen_pids.insert(pid_u32);
-                detected.push(DetectedGateway {
-                    pid: pid_u32,
-                    name: process_name.to_string(),
-                    gateway: gateway.clone(),
-                    cmd: cmd.clone(),
-                    memory: Some(process.memory()),
-                    cpu: Some(process.cpu_usage()),
-                    start_time: Some(process.start_time()),
-                });
-                break;
-            }
-
-            // Check command line arguments
-            if !cmd_str.is_empty() && matches_keyword(&cmd_str, &gateway.keywords) && !seen_pids.contains(&pid_u32) {
+            // Check process name or command line arguments
+            if matches_keyword(&process_name, &gateway.keywords)
+                || (!cmd_str.is_empty() && matches_keyword(&cmd_str, &gateway.keywords))
+            {
                 seen_pids.insert(pid_u32);
                 detected.push(DetectedGateway {
                     pid: pid_u32,

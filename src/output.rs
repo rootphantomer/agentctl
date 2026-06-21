@@ -221,77 +221,54 @@ pub fn output_gateways(gateways: &[DetectedGateway], format: OutputFormat, verbo
 /// Output in table format
 fn output_table(gateways: &[DetectedGateway], verbose: bool) {
     if gateways.is_empty() {
-        println!(
-            "{}",
-            "  No Agent Gateways detected".yellow().dimmed()
-        );
+        println!("{}", "  No Agent Gateways detected".yellow().dimmed());
         return;
     }
 
-    if verbose {
-        let mut table = AsciiTable::new(vec![
-            "PID".to_string(),
-            "Type".to_string(),
-            "Process".to_string(),
-            "Memory".to_string(),
-            "CPU %".to_string(),
-            "Uptime".to_string(),
-            "Port".to_string(),
-            "Web URL".to_string(),
-            "Command".to_string(),
-        ]);
-        // PID col narrow, Command col wide (no cap)
-        table.set_col_max(0, Some(8));
-        table.set_col_max(8, None);
-
-        for gw in gateways {
-            let cmd_full = gw.cmd.join(" ");
-            let uptime = gw.start_time.map(format_uptime).unwrap_or_else(|| "N/A".to_string());
-            let web_url = gw.gateway.web_url.as_deref().unwrap_or("-");
-            let port = gw.gateway.default_port.map(|p| p.to_string()).unwrap_or_else(|| "-".to_string());
-
-            table.add_row(vec![
-                gw.pid.to_string(),
-                gw.gateway.name.clone(),
-                gw.name.clone(),
-                gw.memory.map(format_memory).unwrap_or_else(|| "N/A".to_string()),
-                format!("{:.1}%", gw.cpu.unwrap_or(0.0)),
-                uptime,
-                port,
-                web_url.to_string(),
-                cmd_full,
-            ]);
-        }
-
-        table.print();
+    let (headers, col_maxes) = if verbose {
+        (
+            vec!["PID", "Type", "Process", "Memory", "CPU %", "Uptime", "Port", "Web URL", "Command"],
+            vec![Some(8), None, None, None, None, None, None, None, None],
+        )
     } else {
-        let mut table = AsciiTable::new(vec![
-            "PID".to_string(),
-            "Type".to_string(),
-            "Memory".to_string(),
-            "CPU %".to_string(),
-            "Uptime".to_string(),
-            "Command".to_string(),
-        ]);
-        table.set_col_max(0, Some(8));
-        table.set_col_max(5, None); // Command - no cap
+        (
+            vec!["PID", "Type", "Memory", "CPU %", "Uptime", "Command"],
+            vec![Some(8), None, None, None, None, None],
+        )
+    };
 
-        for gw in gateways {
-            let cmd_full = gw.cmd.join(" ");
-            let uptime = gw.start_time.map(format_uptime).unwrap_or_else(|| "N/A".to_string());
+    let mut table = AsciiTable::new(headers.iter().map(|h| h.to_string()).collect());
+    for (i, max) in col_maxes.iter().enumerate() {
+        table.set_col_max(i, *max);
+    }
 
-            table.add_row(vec![
-                gw.pid.to_string(),
-                gw.gateway.name.clone(),
-                gw.memory.map(format_memory).unwrap_or_else(|| "N/A".to_string()),
-                format!("{:.1}%", gw.cpu.unwrap_or(0.0)),
-                uptime,
-                cmd_full,
-            ]);
+    for gw in gateways {
+        let cmd_full = gw.cmd.join(" ");
+        let uptime = gw.start_time.map(format_uptime).unwrap_or_else(|| "N/A".to_string());
+        let mem = gw.memory.map(format_memory).unwrap_or_else(|| "N/A".to_string());
+        let cpu = format!("{:.1}%", gw.cpu.unwrap_or(0.0));
+
+        let mut row = vec![
+            gw.pid.to_string(),
+            gw.gateway.name.clone(),
+            mem,
+            cpu,
+            uptime,
+            cmd_full,
+        ];
+
+        if verbose {
+            let web_url = gw.gateway.web_url.as_deref().unwrap_or("-").to_string();
+            let port = gw.gateway.default_port.map(|p| p.to_string()).unwrap_or_else(|| "-".to_string());
+            row.insert(2, gw.name.clone());
+            row.push(port);
+            row.push(web_url);
         }
 
-        table.print();
+        table.add_row(row);
     }
+
+    table.print();
 
     // Print summary
     let count = gateways.len();
@@ -312,24 +289,20 @@ fn output_json(gateways: &[DetectedGateway]) {
         message: None,
     };
 
-    let json = serde_json::to_string_pretty(&result).expect("Failed to serialize JSON");
-    println!("{}", json);
+    println!("{}", serde_json::to_string_pretty(&result).expect("Failed to serialize JSON"));
 }
 
 /// Output in compact format (one line per gateway)
 fn output_compact(gateways: &[DetectedGateway]) {
     for gw in gateways {
-        let cmd_full = gw.cmd.join(" ");
-        let mem = gw.memory.map(format_memory).unwrap_or_else(|| "?".to_string());
-        let uptime = gw.start_time.map(format_uptime).unwrap_or_else(|| "?".to_string());
         println!(
             "{} {} mem={} up={} {} {}",
             format!("[{}]", gw.pid).cyan(),
             format!("({})", gw.gateway.id).green(),
-            mem.yellow(),
-            uptime.dimmed(),
+            gw.memory.map(format_memory).unwrap_or_else(|| "?".to_string()).yellow(),
+            gw.start_time.map(format_uptime).unwrap_or_else(|| "?".to_string()).dimmed(),
             gw.name.blue(),
-            cmd_full.dimmed()
+            gw.cmd.join(" ").dimmed()
         );
     }
 

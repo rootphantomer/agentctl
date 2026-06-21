@@ -20,23 +20,15 @@ pub fn check_command(format: OutputFormat) -> i32 {
             }
         }
         OutputFormat::Json => {
-            println!(
-                r#"{{"running": {}, "count": {}, "message": "{}"}}"#,
-                running,
-                count,
-                if running {
-                    format!("Found {} gateway(s)", count)
-                } else {
-                    "No gateways detected".to_string()
-                }
-            );
+            let msg = if running {
+                format!("Found {} gateway(s)", count)
+            } else {
+                "No gateways detected".to_string()
+            };
+            println!(r#"{{"running": {}, "count": {}, "message": "{}"}}"#, running, count, msg);
         }
     }
 
     // Exit code: 0 = no gateways, 1 = gateways running
-    if running {
-        1
-    } else {
-        0
-    }
+    if running { 1 } else { 0 }
 }
