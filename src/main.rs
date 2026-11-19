@@ -57,11 +57,8 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// List all detected Agent Gateway processes
-    List {
-        /// Shorthand alias
-        #[arg(alias = "ls")]
-        _alias: Option<bool>,
-    },
+    #[command(alias = "ls")]
+    List,
     /// Quick check if any gateway is running
     Check,
     /// Kill a specific gateway process by PID
@@ -91,13 +88,8 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
 
-    // Set verbose mode for output module
-    if cli.verbose {
-        std::env::set_var("AGENTCTL_VERBOSE", "1");
-    }
-
     let exit_code = match cli.command {
-        Some(Commands::List { .. }) => {
+        Some(Commands::List) => {
             commands::list_command(cli.format, cli.verbose);
             0
         }
@@ -130,7 +122,7 @@ struct AsciiTable {
 
 impl AsciiTable {
     fn new(headers: Vec<String>) -> Self {
-        let col_widths = headers.iter().map(|h| h.len()).collect();
+        let col_widths = headers.iter().map(|h| h.chars().count()).collect();
         let col_max = vec![None; headers.len()];
         Self {
             headers,
@@ -150,7 +142,7 @@ impl AsciiTable {
         for (i, cell) in row.iter().enumerate() {
             if let Some(width) = self.col_widths.get_mut(i) {
                 let max = self.col_max[i].unwrap_or(200);
-                *width = (*width).max(cell.len().min(max));
+                *width = (*width).max(cell.chars().count().min(max));
             }
         }
         self.rows.push(row);
@@ -164,7 +156,7 @@ impl AsciiTable {
             .headers
             .iter()
             .enumerate()
-            .map(|(i, h)| self.pad_cell(h, self.col_widths[i]))
+            .map(|(i, h)| crate::output::pad_cell(h, self.col_widths[i]))
             .collect();
         println!("│{}│", hcells.join("│"));
 
@@ -181,24 +173,12 @@ impl AsciiTable {
             let cells: Vec<String> = row
                 .iter()
                 .enumerate()
-                .map(|(i, c)| self.pad_cell(c, self.col_widths[i]))
+                .map(|(i, c)| crate::output::pad_cell(c, self.col_widths[i]))
                 .collect();
             println!("│{}│", cells.join("│"));
         }
 
         println!("└{}┘", "─".repeat(line_w.saturating_sub(2)));
-    }
-
-    /// Return a string exactly `width` chars long, left-aligned with
-    /// right-padding spaces. Truncates with ".." if text exceeds `width`.
-    fn pad_cell(&self, text: &str, width: usize) -> String {
-        let display = if text.len() > width {
-            let keep = width.saturating_sub(2);
-            format!("{}..", &text[..keep])
-        } else {
-            text.to_string()
-        };
-        format!("{:<width$}", display, width = width)
     }
 }
 

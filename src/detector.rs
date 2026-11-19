@@ -84,74 +84,109 @@ pub fn detect_gateways() -> Vec<DetectedGateway> {
 }
 
 /// Kill a process by PID
+///
+/// Sends a termination signal, then waits up to 3s for the process to actually
+/// disappear. With `force`, the wait is skipped and the outcome is reported
+/// optimistically (see the platform notes below).
+///
+/// Returns `Ok(true)` when the process is confirmed gone, `Ok(false)` when it
+/// was still alive after the grace period, and `Err` when it could not be
+/// signalled at all.
 #[cfg(unix)]
 pub fn kill_process(pid: u32, force: bool) -> anyhow::Result<bool> {
     use std::time::{Duration, Instant};
     use sysinfo::Pid;
 
-    let sys = System::new_all();
+    let mut sys = System::new_all();
+    let target = Pid::from_u32(pid);
 
     // Try to find and kill the process
-    if let Some(process) = sys.process(Pid::from_u32(pid)) {
-        // Send SIGTERM (default)
-        let killed = process.kill();
-        if !killed {
-            return Err(anyhow::anyhow!("Failed to send signal to process {}", pid));
-        }
-    } else {
+    let Some(process) = sys.process(target) else {
         return Err(anyhow::anyhow!("Process {} not found", pid));
+    };
+
+    let killed = process.kill();
+    if !killed {
+        return Err(anyhow::anyhow!("Failed to send signal to process {}", pid));
     }
 
-    // Wait for process to terminate (up to 3 seconds)
-    if !force {
-        let start = Instant::now();
-        let sys = System::new_all();
-
-        while start.elapsed() < Duration::from_secs(3) {
-            if sys.process(Pid::from_u32(pid)).is_none() {
-                return Ok(true);
-            }
-            std::thread::sleep(Duration::from_millis(100));
-        }
-    }
-
-    // If still alive and force is requested, try kill again (SIGKILL)
     if force {
-        let sys = System::new_all();
-        if let Some(process) = sys.process(Pid::from_u32(pid)) {
-            // sysinfo's kill() sends SIGKILL on Unix when called again
-            let _ = process.kill();
-            std::thread::sleep(Duration::from_millis(100));
-        }
+        // Fire-and-forget: the caller asked not to wait for a graceful exit.
         return Ok(true);
+    }
+
+    // Wait for process to terminate (up to 3 seconds).
+    //
+    // Polling refreshes only this PID — building a whole new `System` on every
+    // 100ms tick re-enumerated every process on the machine each time.
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while Instant::now() < deadline {
+        if !process_exists(&mut sys, target) {
+            return Ok(true);
+        }
+        std::thread::sleep(Duration::from_millis(100));
     }
 
     Ok(false)
 }
 
+/// Kill a process by PID (non-Unix platforms).
+///
+/// Note: `sysinfo` implements process termination on Windows by shelling out to
+/// `taskkill.exe /PID <pid> /F`, which is always a *forceful* termination — the
+/// crate exposes no graceful (SIGTERM-equivalent) path. The `force` flag
+/// therefore cannot select a gentler signal here; it only controls whether we
+/// wait for the process to actually disappear before reporting success.
 #[cfg(not(unix))]
-pub fn kill_process(pid: u32, _force: bool) -> anyhow::Result<bool> {
+pub fn kill_process(pid: u32, force: bool) -> anyhow::Result<bool> {
+    use std::time::{Duration, Instant};
     use sysinfo::Pid;
-    let sys = System::new_all();
 
-    if let Some(process) = sys.process(Pid::from_u32(pid)) {
-        let killed = process.kill();
-        if killed {
-            Ok(true)
-        } else {
-            Err(anyhow::anyhow!("Failed to terminate process {}", pid))
-        }
-    } else {
-        Err(anyhow::anyhow!("Process {} not found", pid))
+    let mut sys = System::new_all();
+    let target = Pid::from_u32(pid);
+
+    let Some(process) = sys.process(target) else {
+        return Err(anyhow::anyhow!("Process {} not found", pid));
+    };
+
+    let killed = process.kill();
+    if !killed {
+        return Err(anyhow::anyhow!("Failed to terminate process {}", pid));
     }
+
+    if force {
+        return Ok(true);
+    }
+
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while Instant::now() < deadline {
+        if !process_exists(&mut sys, target) {
+            return Ok(true);
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+
+    Ok(false)
+}
+
+/// Refresh a single PID and report whether the process is still present.
+fn process_exists(sys: &mut System, pid: sysinfo::Pid) -> bool {
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), true);
+    sys.process(pid).is_some()
 }
 
 /// Check if any gateway is running
+///
+/// Convenience wrapper around [`detect_gateways`], kept test-only: production
+/// code should call `detect_gateways()` once and derive both the count and the
+/// boolean from it, rather than scanning twice.
+#[cfg(test)]
 pub fn has_gateways_running() -> bool {
     !detect_gateways().is_empty()
 }
 
-/// Get count of running gateways
+/// Get count of running gateways (see [`has_gateways_running`]).
+#[cfg(test)]
 pub fn count_gateways() -> usize {
     detect_gateways().len()
 }
@@ -171,6 +206,10 @@ mod tests {
 
     #[test]
     fn test_has_gateways() {
-        println!("Gateways running: {}", has_gateways_running());
+        // Detect once and derive both facts from the same snapshot — the two
+        // wrappers exist so this stays a single scan.
+        let detected = detect_gateways();
+        assert_eq!(has_gateways_running(), !detected.is_empty());
+        assert_eq!(count_gateways(), detected.len());
     }
 }

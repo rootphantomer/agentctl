@@ -6,20 +6,15 @@ use colored::Colorize;
 use serde::Serialize;
 
 /// Output format options
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
 pub enum OutputFormat {
     /// Human-readable table format
+    #[default]
     Table,
     /// JSON format for scripting
     Json,
     /// Compact single-line format
     Compact,
-}
-
-impl Default for OutputFormat {
-    fn default() -> Self {
-        Self::Table
-    }
 }
 
 /// Output result structure for JSON serialization
@@ -115,6 +110,37 @@ pub fn format_uptime(start_time: u64) -> String {
     }
 }
 
+/// Pad `text` to exactly `width` characters, truncating with `..` when it does
+/// not fit.
+///
+/// Widths are measured in `char`s, never in bytes: slicing a `&str` by byte
+/// offset panics on a multi-byte boundary, which used to crash the table
+/// renderer on command lines containing non-ASCII text.
+///
+/// Note: this counts chars, not terminal columns, so double-width scripts
+/// (CJK, emoji) still occupy more screen space than the computed width.
+/// Exact alignment for those would need a `unicode-width` dependency.
+pub(crate) fn pad_cell(text: &str, width: usize) -> String {
+    let display = if text.chars().count() > width {
+        // `width` can be smaller than the truncation marker itself.
+        match width {
+            0 => String::new(),
+            1 => ".".to_string(),
+            _ => {
+                let mut truncated: String = text.chars().take(width - 2).collect();
+                truncated.push_str("..");
+                truncated
+            }
+        }
+    } else {
+        text.to_string()
+    };
+
+    let mut padded = display;
+    padded.push_str(&" ".repeat(width.saturating_sub(padded.chars().count())));
+    padded
+}
+
 /// Simple ASCII table printer with configurable column max-width.
 ///
 /// Each column is exactly `col_width` characters wide. Cells are
@@ -130,7 +156,7 @@ struct AsciiTable {
 
 impl AsciiTable {
     fn new(headers: Vec<String>) -> Self {
-        let col_widths = headers.iter().map(|h| h.len()).collect();
+        let col_widths = headers.iter().map(|h| h.chars().count()).collect();
         let col_max_overrides = vec![None; headers.len()];
         Self {
             headers,
@@ -151,7 +177,7 @@ impl AsciiTable {
         for (i, cell) in row.iter().enumerate() {
             if let Some(width) = self.col_widths.get_mut(i) {
                 let max = self.col_max_overrides[i].unwrap_or(200);
-                *width = (*width).max(cell.len().min(max));
+                *width = (*width).max(cell.chars().count().min(max));
             }
         }
         self.rows.push(row);
@@ -168,7 +194,7 @@ impl AsciiTable {
             .headers
             .iter()
             .enumerate()
-            .map(|(i, h)| self.pad_cell(h, self.col_widths[i]))
+            .map(|(i, h)| pad_cell(h, self.col_widths[i]))
             .collect();
         println!("│{}│", hcells.join("│"));
 
@@ -187,7 +213,7 @@ impl AsciiTable {
             let cells: Vec<String> = row
                 .iter()
                 .enumerate()
-                .map(|(i, c)| self.pad_cell(c, self.col_widths[i]))
+                .map(|(i, c)| pad_cell(c, self.col_widths[i]))
                 .collect();
             println!("│{}│", cells.join("│"));
         }
@@ -195,17 +221,43 @@ impl AsciiTable {
         // Bottom border
         println!("└{}┘", "─".repeat(line_w.saturating_sub(2)));
     }
+}
 
-    /// Return a string exactly `width` chars long, left-aligned with
-    /// right-padding spaces. Truncates with ".." if text exceeds `width`.
-    fn pad_cell(&self, text: &str, width: usize) -> String {
-        let display = if text.len() > width {
-            let keep = width.saturating_sub(2);
-            format!("{}..", &text[..keep])
-        } else {
-            text.to_string()
-        };
-        format!("{:<width$}", display, width = width)
+#[cfg(test)]
+mod pad_cell_tests {
+    use super::pad_cell;
+
+    #[test]
+    fn pads_short_text() {
+        assert_eq!(pad_cell("abc", 6), "abc   ");
+    }
+
+    #[test]
+    fn leaves_exact_width_untouched() {
+        assert_eq!(pad_cell("abcdef", 6), "abcdef");
+    }
+
+    #[test]
+    fn truncates_long_text() {
+        assert_eq!(pad_cell("abcdefghij", 6), "abcd..");
+        assert_eq!(pad_cell("abcdefghij", 5), "abc..");
+        assert_eq!(pad_cell("abcdefghij", 4), "ab..");
+        assert_eq!(pad_cell("abcdefghij", 3), "a..");
+        assert_eq!(pad_cell("abcdefghij", 2), "..");
+        assert_eq!(pad_cell("abcdefghij", 1), ".");
+        assert_eq!(pad_cell("abcdefghij", 0), "");
+    }
+
+    #[test]
+    fn never_panics_on_multibyte_text() {
+        // Every one of these used to panic on a non-boundary byte slice.
+        for w in 0..12 {
+            assert_eq!(pad_cell("命令 python -m hermes", w).chars().count(), w);
+        }
+        assert_eq!(pad_cell("命令", 4), "命令  ");
+        assert_eq!(pad_cell("命令", 3), "命令 ");
+        assert_eq!(pad_cell("命令", 2), "命令");
+        assert_eq!(pad_cell("命令", 1), ".");
     }
 }
 
